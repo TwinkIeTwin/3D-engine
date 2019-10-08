@@ -1,0 +1,16 @@
+C:\Study\курсач\3D engine\bin\Debug\3D engine.exe.config
+C:\Study\курсач\3D engine\bin\Debug\3D engine.exe
+C:\Study\курсач\3D engine\bin\Debug\3D engine.pdb
+C:\Study\курсач\3D engine\obj\Debug\3D engine.csprojAssemblyReference.cache
+C:\Study\курсач\3D engine\obj\Debug\MainWindow.g.cs
+C:\Study\курсач\3D engine\obj\Debug\App.g.cs
+C:\Study\курсач\3D engine\obj\Debug\3D engine_MarkupCompile.cache
+C:\Study\курсач\3D engine\obj\Debug\3D engine_MarkupCompile.lref
+C:\Study\курсач\3D engine\obj\Debug\MainWindow.baml
+C:\Study\курсач\3D engine\obj\Debug\3D engine.g.resources
+C:\Study\курсач\3D engine\obj\Debug\_3D_engine.Properties.Resources.resources
+C:\Study\курсач\3D engine\obj\Debug\3D engine.csproj.GenerateResource.cache
+C:\Study\курсач\3D engine\obj\Debug\3D engine.exe
+C:\Study\курсач\3D engine\obj\Debug\3D engine.pdb
+C:\Study\курсач\3D engine\bin\Debug\System.Drawing.Common.dll
+C:\Study\курсач\3D engine\obj\Debug\3D engine.csproj.CopyComplete
