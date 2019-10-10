@@ -27,9 +27,8 @@ namespace _3D_engine
 				this.x = x;
 				this.y = y;
 				this.z = z;
-				this.w = z;
+				this.w = 1;
 			}
-
 			public vect3D(double x, double y, double z, double w)
 			{
 				this.x = x;
@@ -37,7 +36,6 @@ namespace _3D_engine
 				this.z = z;
 				this.w = w;
 			}
-
 			public static vect3D operator +(vect3D v1, vect3D v2)
 			{
 				return new vect3D(v1.x + v2.x, v1.y + v2.y, v1.z + v2.z);
@@ -98,9 +96,9 @@ namespace _3D_engine
 		SolidColorBrush getColor(double c)
 		{
 			byte a = Convert.ToByte(255 * Math.Abs(c));
+			a = a < 25 ? (byte)25 : a;
 			return new SolidColorBrush(System.Windows.Media.Color.FromRgb(a, a, a));
 		}
-
 		class triangle : IComparable<triangle>
 		{
 			public vect3D[] vect;
@@ -124,7 +122,6 @@ namespace _3D_engine
 				return otherAvvZ > thisAvvZ ? 1 : -1;
 			}
 		}
-
 		matrix4x4 getMatrixRotationZ(double angle)
 		{
 			matrix4x4 matRotZ = new matrix4x4();
@@ -136,7 +133,6 @@ namespace _3D_engine
 			matRotZ.m[3, 3] = 1;
 			return matRotZ;
 		}
-
 		matrix4x4 getMatrixRotationX(double angle)
 		{
 			matrix4x4 matRotX = new matrix4x4();
@@ -148,7 +144,17 @@ namespace _3D_engine
 			matRotX.m[3, 3] = 1;
 			return matRotX;
 		}
-
+		matrix4x4 getMatrixRotationY(double angle)
+		{
+			matrix4x4 matrix = new matrix4x4();
+			matrix.m[0,0] = Math.Cos(angle);
+			matrix.m[0,2] = Math.Sin(angle);
+			matrix.m[2,0] = -Math.Sin(angle);
+			matrix.m[1,1] = 1.0f;
+			matrix.m[2,2] = Math.Cos(angle);
+			matrix.m[3,3] = 1.0f;
+			return matrix;
+		}
 		matrix4x4 getMatrixTranslation(double x, double y, double z)
 		{
 			matrix4x4 matrixTranslation = new matrix4x4();
@@ -172,6 +178,50 @@ namespace _3D_engine
 			matProj.m[2, 3] = 1.0;
 			matProj.m[3, 3] = 0.0;
 			return matProj;
+		}
+
+		matrix4x4 matrixPointAt(vect3D pos, vect3D target, vect3D up)
+		{
+			vect3D newForward = target - pos;
+			newForward.Normalize();
+			// Calculate new Up direction
+			vect3D a = newForward * up.DotProduct(newForward);
+			vect3D newUp = up - a;
+			newUp.Normalize();
+			// New Right direction is easy, its just cross product
+			vect3D newRight = newUp.CrossProduct(newForward);
+			// Construct Dimensioning and Translation Matrix	
+			matrix4x4 matrix = new matrix4x4();
+			matrix.m[0, 0] = newRight.x; matrix.m[0,1] = newRight.y; matrix.m[0, 2] = newRight.z; matrix.m[0,3] = 0.0f;
+			matrix.m[1, 0] = newUp.x; matrix.m[1,1] = newUp.y; matrix.m[1,2] = newUp.z; matrix.m[1,3] = 0.0f;
+			matrix.m[2, 0] = newForward.x; matrix.m[2,1] = newForward.y; matrix.m[2,2] = newForward.z; matrix.m[2,3] = 0.0f;
+			matrix.m[3, 0] = pos.x; matrix.m[3,1] = pos.y; matrix.m[3,2] = pos.z; matrix.m[3,3] = 1.0f;
+			return matrix;
+		}
+
+		matrix4x4 matrixQuickInverse(matrix4x4 m)
+		{
+			matrix4x4 matrix = new matrix4x4();
+			matrix.m[0, 0] = m.m[0, 0];
+			matrix.m[0, 1] = m.m[1, 0];
+			matrix.m[0, 2] = m.m[2, 0];
+			matrix.m[0, 3] = 0.0f;
+
+			matrix.m[1, 0] = m.m[0, 1];
+			matrix.m[1, 1] = m.m[1, 1];
+			matrix.m[1, 2] = m.m[2, 1];
+			matrix.m[1, 3] = 0.0f;
+
+			matrix.m[2, 0] = m.m[0, 2];
+			matrix.m[2, 1] = m.m[1, 2];
+			matrix.m[2, 2] = m.m[2, 2];
+			matrix.m[2, 3] = 0.0f;
+
+			matrix.m[3, 0] = -(m.m[3, 0] * matrix.m[0, 0] + m.m[3, 1] * matrix.m[1, 0] + m.m[3, 2] * matrix.m[2, 0]);
+			matrix.m[3, 1] = -(m.m[3, 0] * matrix.m[0, 1] + m.m[3, 1] * matrix.m[1, 1] + m.m[3, 2] * matrix.m[2, 1]);
+			matrix.m[3, 2] = -(m.m[3, 0] * matrix.m[0, 2] + m.m[3, 1] * matrix.m[1, 2] + m.m[3, 2] * matrix.m[2, 2]);
+			matrix.m[3, 3] = 1.0f;
+			return matrix;
 		}
 
 		class matrix4x4
@@ -213,9 +263,7 @@ namespace _3D_engine
 			{
 				tris = new List<triangle>();
 			}
-
-			// succesfull?
-			public void loadFromObjFile(string fileName)
+			public void loadFromObjFileAt(string fileName, double x, double y, double z)
 			{
 				string[] file = System.IO.File.ReadAllLines(fileName);
 				List<vect3D> verts = new List<vect3D>();
@@ -228,9 +276,9 @@ namespace _3D_engine
 					//vertex
 					if (typeOfLine == 'v')
 					{
-						vect3D vect = new vect3D(Convert.ToDouble(lineValues[1], System.Globalization.CultureInfo.InvariantCulture),
-							Convert.ToDouble(lineValues[2], System.Globalization.CultureInfo.InvariantCulture),
-							Convert.ToDouble(lineValues[3], System.Globalization.CultureInfo.InvariantCulture));
+						vect3D vect = new vect3D(Convert.ToDouble(lineValues[1], System.Globalization.CultureInfo.InvariantCulture) + x,
+							Convert.ToDouble(lineValues[2], System.Globalization.CultureInfo.InvariantCulture) + y,
+							Convert.ToDouble(lineValues[3], System.Globalization.CultureInfo.InvariantCulture) + z);
 						verts.Add(vect);
 					}
 					//triangle
@@ -244,9 +292,7 @@ namespace _3D_engine
 						tris.Add(new triangle(verts[v1], verts[v2], verts[v3]));
 					}
 				}
-				
 			}
-
 		}
 		
 		matrix4x4 createUnitMatrix()
@@ -258,21 +304,6 @@ namespace _3D_engine
 			m.m[3, 3] = 1.0;
 			return m;
 		}
-		void MultiplyMatrixVector(vect3D inputVect, out vect3D outputVect, matrix4x4 mat)
-		{
-			outputVect.x = inputVect.x * mat.m[0, 0] + inputVect.y * mat.m[1, 0] + inputVect.z * mat.m[2, 0] + mat.m[3, 0];
-			outputVect.y = inputVect.x * mat.m[0, 1] + inputVect.y * mat.m[1, 1] + inputVect.z * mat.m[2, 1] + mat.m[3, 1];
-			outputVect.z = inputVect.x * mat.m[0, 2] + inputVect.y * mat.m[1, 2] + inputVect.z * mat.m[2, 2] + mat.m[3, 2];
-			outputVect.w = inputVect.x * mat.m[0, 3] + inputVect.y * mat.m[1, 3] + inputVect.z * mat.m[2, 3] + mat.m[3, 3];
-			//deviding by zero
-			if (outputVect.w != 0.0)
-			{
-				outputVect.x /= outputVect.w;
-				outputVect.y /= outputVect.w;
-				outputVect.z /= outputVect.w;
-			}
-		}
-
 		void DrawTriangle(triangle t)
 		{
 			int x1 = Convert.ToInt32(t.vect[0].x);
@@ -285,12 +316,26 @@ namespace _3D_engine
 
 			System.Windows.Shapes.Polygon tri = new System.Windows.Shapes.Polygon();
 			tri.Fill = color;
+			tri.Stroke = System.Windows.Media.Brushes.Red;
 			tri.Points.Add(new System.Windows.Point(x1, y1));
 			tri.Points.Add(new System.Windows.Point(x2, y2));
 			tri.Points.Add(new System.Windows.Point(x3, y3));
 			canvas.Children.Add(tri);
-		}
 
+			foreach (var i in t.vect)
+			{
+				Ellipse circle = new Ellipse();
+				circle.Margin = new Thickness(i.x, i.y, 0, 0);
+				circle.Width = 5;
+				circle.Height = 5;
+				circle.Fill = System.Windows.Media.Brushes.Blue;
+				if (!canvas.Children.Contains(circle))
+				{
+					canvas.Children.Add(circle);
+				}
+			}
+
+		}
 
 		static double fTheta = 0;
 		static double speed = 0.05;
@@ -298,9 +343,8 @@ namespace _3D_engine
 
 		private void initializeObjects()
 		{
-			// порядок указания вершин - по часовой стрелке
 			meshCube = new mesh();
-			meshCube.loadFromObjFile("spaceShip.obj");
+			meshCube.loadFromObjFileAt("spaceShip.obj", 0, 0, 0);
 		}
 
 		private void initializeMatrix()
@@ -325,12 +369,19 @@ namespace _3D_engine
 			initializeObjects();
 			System.Windows.Threading.DispatcherTimer timer = new System.Windows.Threading.DispatcherTimer();
 			timer.Tick += new EventHandler(timerTick);
-			timer.Interval = new TimeSpan(0, 0, 0, 0, 20);
+			timer.Interval = new TimeSpan(0, 0, 0, 0, 1);
 			timer.Start();
+			canvas.Focus();
 		}
 		mesh meshCube;
 		matrix4x4 matProj;
 		vect3D vCamera;
+		vect3D vLookDir;
+		// camera rotation
+		// Y axis (horizontal)
+		double fYaw;
+		// X axis (vertical)
+		double fXaw;
 		private void timerTick(object sender, EventArgs e)
 		{
 			canvas.Children.Clear();
@@ -338,121 +389,136 @@ namespace _3D_engine
 			fTheta += speed;
 			matrix4x4 matRotZ = getMatrixRotationZ(fTheta);
 			matrix4x4 matRotX = getMatrixRotationX(fTheta);
-
-			matrix4x4 matTrans = getMatrixTranslation(0, 0, 16); ;
+			matrix4x4 matRotY = getMatrixRotationY(fTheta);
+			matrix4x4 matTrans = getMatrixTranslation(5, 5, 20); ;
 
 			// all the transformations that we need to do in this matrix
 			matrix4x4 matWorld = createUnitMatrix();
-			matWorld = matRotZ * matRotX;
+			matWorld = matRotZ * matRotX * matRotY;
 			matWorld = matWorld * matTrans;
+
+			//camera
+			vect3D vUp = new vect3D(0, 1, 0);
+			vect3D vTarget = new vect3D(0, 0, 1);
+			matrix4x4 matCameraRot = getMatrixRotationY(fYaw) * getMatrixRotationX(fXaw);
+			
+			vLookDir = matCameraRot * vTarget;
+			vTarget = vCamera + vLookDir;
+			matrix4x4 matCamera = matrixPointAt(vCamera, vTarget, vUp);
+			matrix4x4 matView = matrixQuickInverse(matCamera);
 
 			List<triangle> trianglesToRaster = new List<triangle>();
 
 			foreach (triangle tri in meshCube.tris)
 			{
 				triangle triProjected = new triangle();
-				triangle triTransleted = new triangle();
-				triangle triRotatedZ = new triangle();
-				triangle triRotatedZX = new triangle();
-
-				//test
 				triangle triTransformed = new triangle();
+				triangle triViewed = new triangle();
 				triTransformed.vect[0] = matWorld * tri.vect[0];
 				triTransformed.vect[1] = matWorld * tri.vect[1];
 				triTransformed.vect[2] = matWorld * tri.vect[2];
 
-
-				//
-
-				//rotate in Z
-				MultiplyMatrixVector(tri.vect[0], out triRotatedZ.vect[0], matRotZ);
-				MultiplyMatrixVector(tri.vect[1], out triRotatedZ.vect[1], matRotZ);
-				MultiplyMatrixVector(tri.vect[2], out triRotatedZ.vect[2], matRotZ);
-
-				// rotate in X
-				MultiplyMatrixVector(triRotatedZ.vect[0], out triRotatedZX.vect[0], matRotX);
-				MultiplyMatrixVector(triRotatedZ.vect[1], out triRotatedZX.vect[1], matRotX);
-				MultiplyMatrixVector(triRotatedZ.vect[2], out triRotatedZX.vect[2], matRotX);
-
-				// zoom out
-				triTransleted = triRotatedZX;
-				triTransleted.vect[0].z = triRotatedZX.vect[0].z + 8.0;
-				triTransleted.vect[1].z = triRotatedZX.vect[1].z + 8.0;
-				triTransleted.vect[2].z = triRotatedZX.vect[2].z + 8.0;
-
-				//finding triangles normals
 				vect3D normal = new vect3D();
 				vect3D line1 = new vect3D();
 				vect3D line2 = new vect3D();
 
-				line1 = triTransleted.vect[1] - triTransleted.vect[0];
-				line2 = triTransleted.vect[2] - triTransleted.vect[0];
-				//line1.x = triTransleted.vect[1].x - triTransleted.vect[0].x;
-				//line1.y = triTransleted.vect[1].y - triTransleted.vect[0].y;
-				//line1.z = triTransleted.vect[1].z - triTransleted.vect[0].z;
-
-				//line2.x = triTransleted.vect[2].x - triTransleted.vect[0].x;
-				//line2.y = triTransleted.vect[2].y - triTransleted.vect[0].y;
-				//line2.z = triTransleted.vect[2].z - triTransleted.vect[0].z;
+				line1 = triTransformed.vect[1] - triTransformed.vect[0];
+				line2 = triTransformed.vect[2] - triTransformed.vect[0];
 
 				normal = line1.CrossProduct(line2);
-
-				//normalizing normal
 				normal.Normalize();
-
-
+			
 				//projecting
 
 				// объект виден если угол между нормалью к нему и нашей камерой меньше 90 градусов
 				// будем проверять это с помощью скалярного произведения векторов
 				// скалярное произведение векторов угол между которыми > 90 градусов будет < 0
-				if (normal.DotProduct(triTransleted.vect[0] - vCamera) < 0.0)
+				if (normal.DotProduct(triTransformed.vect[0] - vCamera) < 0.0)
 				{
 					// illumination (all illumination cooming from direction, not from the point)
 					// свет тем ярче чем меньше угол между нормалью поверхности с направлением света
 					vect3D lightDirection = new vect3D(0.0, 0.0, -1.0);
 					lightDirection.Normalize();
 
-					// dot product between normal and lightDirection
-					double dp = normal.x * lightDirection.x + normal.y * lightDirection.y + normal.z * lightDirection.z;
-
+					double dp = normal.DotProduct(lightDirection);
 					triProjected.luminosity = dp;
+					triTransformed.luminosity = dp;
 
+					triViewed.vect[0] = matView * triTransformed.vect[0];
+					triViewed.vect[1] = matView * triTransformed.vect[1];
+					triViewed.vect[2] = matView * triTransformed.vect[2];
 
-					MultiplyMatrixVector(triTransleted.vect[0], out triProjected.vect[0], matProj);
-					MultiplyMatrixVector(triTransleted.vect[1], out triProjected.vect[1], matProj);
-					MultiplyMatrixVector(triTransleted.vect[2], out triProjected.vect[2], matProj);
+					triProjected.vect[0] = matProj * triViewed.vect[0];
+					triProjected.vect[1] = matProj * triViewed.vect[1];
+					triProjected.vect[2] = matProj * triViewed.vect[2];
 
+					triProjected.vect[0] = triProjected.vect[0] / triProjected.vect[0].w;
+					triProjected.vect[1] = triProjected.vect[1] / triProjected.vect[1].w;
+					triProjected.vect[2] = triProjected.vect[2] / triProjected.vect[2].w;
 
+					//offset into visible mormalized space 
+					vect3D vOffsetView = new vect3D(1, 1, 0);
 
-					//Scale into view
-					triProjected.vect[0].x += 1.0;
-					triProjected.vect[0].x *= SystemParameters.PrimaryScreenWidth / 2.0;
-					triProjected.vect[0].y += 1.0;
-					triProjected.vect[0].y *= SystemParameters.PrimaryScreenHeight / 2.0;
-
-					triProjected.vect[1].x += 1.0;
-					triProjected.vect[1].x *= SystemParameters.PrimaryScreenWidth / 2.0;
-					triProjected.vect[1].y += 1.0;
-					triProjected.vect[1].y *= SystemParameters.PrimaryScreenHeight / 2.0;
-
-					triProjected.vect[2].x += 1.0;
-					triProjected.vect[2].x *= SystemParameters.PrimaryScreenWidth / 2.0;
-					triProjected.vect[2].y += 1.0;
-					triProjected.vect[2].y *= SystemParameters.PrimaryScreenHeight / 2.0;
+					triProjected.vect[0] = triProjected.vect[0] + vOffsetView;
+					triProjected.vect[1] = triProjected.vect[1] + vOffsetView;
+					triProjected.vect[2] = triProjected.vect[2] + vOffsetView;
+				
+					triProjected.vect[0].x *= canvas.Width  / 2.0;
+					triProjected.vect[0].y *= canvas.Height / 2.0;
+					triProjected.vect[1].x *= canvas.Width  / 2.0;
+					triProjected.vect[1].y *= canvas.Height / 2.0;
+					triProjected.vect[2].x *= canvas.Width  / 2.0;
+					triProjected.vect[2].y *= canvas.Height / 2.0;
 
 					trianglesToRaster.Add(triProjected);
 				}
 			}
 			// Sort triangles from back to front 
-			//MessageBox.Show(trianglesToRaster[0].vect[0].x + " " + trianglesToRaster[0].vect[0].y + " " + trianglesToRaster[0].vect[0].z);
 			trianglesToRaster.Sort();
-			//MessageBox.Show(trianglesToRaster[0].vect[0].x + " " + trianglesToRaster[0].vect[0].y + " " + trianglesToRaster[0].vect[0].z);
 			foreach (triangle t in trianglesToRaster)
 			{
 				DrawTriangle(t);
 			}
 		}
-
+		protected override void OnKeyDown(KeyEventArgs e)
+		{
+			
+			switch (e.Key)
+			{
+				//Forward
+				case Key.Up:
+					vCamera = vCamera + (vLookDir * 1.001); 
+					break;
+				//Left
+				case Key.Left:
+					vCamera.x -= 1.0;
+					break;
+				//Right
+				case Key.Right:
+					vCamera.x += 1.0;
+					break;
+				//Back		
+				case Key.Down:
+					vCamera = vCamera - (vLookDir * 1.001);
+					break;
+				// rotate up
+				case Key.W:
+					fXaw += 0.05;
+					break;
+				// rotate down
+				case Key.S:
+					fXaw -= 0.05;
+					break;
+				// turn left
+				case Key.A:
+					fYaw += 0.05;
+					break;
+				// turn right
+				case Key.D:
+					fYaw -= 0.05;
+					break;
+			}
+			base.OnKeyDown(e);
+		}
 	}
 }
