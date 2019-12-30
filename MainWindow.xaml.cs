@@ -93,6 +93,7 @@ namespace _3D_engine
 			}
 
 		}
+		//FUNC
 		SolidColorBrush getColor(double c)
 		{
 			byte a = Convert.ToByte(255 * Math.Abs(c));
@@ -122,6 +123,7 @@ namespace _3D_engine
 				return otherAvvZ > thisAvvZ ? 1 : -1;
 			}
 		}
+		//FUNC
 		matrix4x4 getMatrixRotationZ(double angle)
 		{
 			matrix4x4 matRotZ = new matrix4x4();
@@ -155,6 +157,7 @@ namespace _3D_engine
 			matrix.m[3,3] = 1.0f;
 			return matrix;
 		}
+		//FUNC
 		matrix4x4 getMatrixTranslation(double x, double y, double z)
 		{
 			matrix4x4 matrixTranslation = new matrix4x4();
@@ -167,7 +170,7 @@ namespace _3D_engine
 			matrixTranslation.m[3, 2] = z;
 			return matrixTranslation;
 		}
-
+		//FUNC
 		matrix4x4 getMatrixProjection(double fFovRad, double fAspectRation, double fNear, double fFar)
 		{
 			matrix4x4 matProj = new matrix4x4();
@@ -179,7 +182,7 @@ namespace _3D_engine
 			matProj.m[3, 3] = 0.0;
 			return matProj;
 		}
-
+		//FUNC
 		matrix4x4 matrixPointAt(vect3D pos, vect3D target, vect3D up)
 		{
 			vect3D newForward = target - pos;
@@ -263,6 +266,7 @@ namespace _3D_engine
 			{
 				tris = new List<triangle>();
 			}
+			//FUNC
 			public void loadFromObjFileAt(string fileName, double x, double y, double z)
 			{
 				string[] file = System.IO.File.ReadAllLines(fileName);
@@ -304,7 +308,8 @@ namespace _3D_engine
 			m.m[3, 3] = 1.0;
 			return m;
 		}
-		void DrawTriangle(triangle t)
+		//FUNC
+		void DrawTriangle(triangle t, bool points, bool lines)
 		{
 			int x1 = Convert.ToInt32(t.vect[0].x);
 			int y1 = Convert.ToInt32(t.vect[0].y);
@@ -316,28 +321,37 @@ namespace _3D_engine
 
 			System.Windows.Shapes.Polygon tri = new System.Windows.Shapes.Polygon();
 			tri.Fill = color;
-			tri.Stroke = System.Windows.Media.Brushes.Red;
+			if (lines)
+			{
+				tri.Stroke = System.Windows.Media.Brushes.Red;
+			}
+			else
+			{
+				tri.Stroke = color;
+			}
 			tri.Points.Add(new System.Windows.Point(x1, y1));
 			tri.Points.Add(new System.Windows.Point(x2, y2));
 			tri.Points.Add(new System.Windows.Point(x3, y3));
 			canvas.Children.Add(tri);
-
-			foreach (var i in t.vect)
+			if (points)
 			{
-				Ellipse circle = new Ellipse();
-				circle.Margin = new Thickness(i.x, i.y, 0, 0);
-				circle.Width = 5;
-				circle.Height = 5;
-				circle.Fill = System.Windows.Media.Brushes.Blue;
-				if (!canvas.Children.Contains(circle))
+				foreach (var i in t.vect)
 				{
-					canvas.Children.Add(circle);
+					Ellipse circle = new Ellipse();
+					circle.Margin = new Thickness(i.x, i.y, 0, 0);
+					circle.Width = 5;
+					circle.Height = 5;
+					circle.Fill = System.Windows.Media.Brushes.Blue;
+					if (!canvas.Children.Contains(circle))
+					{
+						canvas.Children.Add(circle);
+					}
 				}
 			}
 
 		}
 
-		static double fTheta = 0;
+		static double fTheta = Math.PI / 2.0;
 		static double speed = 0.05;
 		System.Windows.Threading.DispatcherTimer timer;
 
@@ -345,6 +359,7 @@ namespace _3D_engine
 		{
 			meshCube = new mesh();
 			meshCube.loadFromObjFileAt("spaceShip.obj", 0, 0, 0);
+			meshCube.loadFromObjFileAt("spaceShip.obj", 0, 2, 15);
 		}
 
 		private void initializeMatrix()
@@ -382,21 +397,40 @@ namespace _3D_engine
 		double fYaw;
 		// X axis (vertical)
 		double fXaw;
+
+		double x = 0;
+		double r = 9;
+
+		bool isHalfRotated = false;
 		private void timerTick(object sender, EventArgs e)
 		{
 			canvas.Children.Clear();
-
-			fTheta += speed;
-			matrix4x4 matRotZ = getMatrixRotationZ(fTheta);
-			matrix4x4 matRotX = getMatrixRotationX(fTheta);
+	
+			double deltaX = 0.2 ;
+			double fDelta = 2 * Math.PI / (4 * r / deltaX); 
+			fTheta += fDelta;
+			matrix4x4 matRotZ = getMatrixRotationZ(0);
+			matrix4x4 matRotX = getMatrixRotationX(0);
 			matrix4x4 matRotY = getMatrixRotationY(fTheta);
-			matrix4x4 matTrans = getMatrixTranslation(5, 5, 20); ;
+			if (Math.Abs(x) >= r )
+			{
+				isHalfRotated = !isHalfRotated;
+			}
+			x += isHalfRotated ? deltaX : -deltaX;
+
+
+			double z = isHalfRotated ? -Math.Sqrt(r * r - x * x) : Math.Sqrt(r * r - x * x);
+			z += 4 * r;
+
+
+			matrix4x4 matTrans = getMatrixTranslation(x, 1, z); ;
+			
 
 			// all the transformations that we need to do in this matrix
 			matrix4x4 matWorld = createUnitMatrix();
 			matWorld = matRotZ * matRotX * matRotY;
 			matWorld = matWorld * matTrans;
-
+			
 			//camera
 			vect3D vUp = new vect3D(0, 1, 0);
 			vect3D vTarget = new vect3D(0, 0, 1);
@@ -437,7 +471,7 @@ namespace _3D_engine
 				{
 					// illumination (all illumination cooming from direction, not from the point)
 					// свет тем ярче чем меньше угол между нормалью поверхности с направлением света
-					vect3D lightDirection = new vect3D(0.0, 0.0, -1.0);
+					vect3D lightDirection = new vect3D(-5.0, -5.0, -5.0);
 					lightDirection.Normalize();
 
 					double dp = normal.DotProduct(lightDirection);
@@ -474,12 +508,18 @@ namespace _3D_engine
 				}
 			}
 			// Sort triangles from back to front 
-			trianglesToRaster.Sort();
+			try {
+				trianglesToRaster.Sort();
+			}
+			catch (Exception ex)
+			{
+
+			}
 			foreach (triangle t in trianglesToRaster)
 			{
-				DrawTriangle(t);
+				DrawTriangle(t, true, true);
 			}
-		}
+			}
 		protected override void OnKeyDown(KeyEventArgs e)
 		{
 			

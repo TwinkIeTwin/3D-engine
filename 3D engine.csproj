@@ -72,6 +72,7 @@
     <Compile Include="MainWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="MyOpengl.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
